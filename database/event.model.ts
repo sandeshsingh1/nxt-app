@@ -33,7 +33,10 @@ const EventSchema = new Schema<IEvent>(
     mode: {
       type: String,
       required: [true, 'Mode is required'],
-      enum: ['online', 'offline', 'hybrid'],
+      enum: {
+        values: ['online', 'offline', 'hybrid'],
+        message: 'Mode must be either online, offline, or hybrid',
+      },
     },
     audience: { type: String, required: [true, 'Audience is required'], trim: true },
     agenda: { type: [String], required: [true, 'Agenda is required'] },
@@ -43,20 +46,21 @@ const EventSchema = new Schema<IEvent>(
   { timestamps: true }
 );
 
-// Pre-save hook optimized for Next.js/Mongoose
+// FIX: Pre-save hook converted to async (removed next())
 EventSchema.pre('save', async function () {
   const event = this as IEvent;
 
   if (event.isModified('title') || event.isNew) {
     event.slug = generateSlug(event.title);
   }
+
   if (event.isModified('date')) {
     event.date = normalizeDate(event.date);
   }
+
   if (event.isModified('time')) {
     event.time = normalizeTime(event.time);
   }
-  // next() ki zaroorat nahi hai async function mein
 });
 
 function generateSlug(title: string): string {
@@ -83,7 +87,7 @@ function normalizeTime(timeString: string): string {
   return `${hours.toString().padStart(2, '0')}:${minutes}`;
 }
 
-// Compound index rakha hai, duplicate slug index hata diya
+// Compound index for common queries
 EventSchema.index({ date: 1, mode: 1 });
 
 const Event = models.Event || model<IEvent>('Event', EventSchema);
